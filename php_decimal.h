@@ -128,6 +128,8 @@
 #define THIS_DECIMAL()          Z_DECIMAL_P(getThis())
 #define THIS_MPD()              Z_DECIMAL_MPD_P(getThis())
 
+#define O_DECIMAL_P(o)          ((php_decimal_t*) o)
+
 #define RETURN_DECIMAL(dec) \
 do { \
     php_decimal_t *_dec = dec; \
@@ -185,7 +187,11 @@ do { \
 #define PHP_DECIMAL_ARGINFO_EX(name, required_num_args, entry_type) \
     ZEND_BEGIN_ARG_INFO_EX(php_decimal_##entry_type##_arginfo_##name, 0, 0, required_num_args)
 
-#if PHP_VERSION_ID >= 70200
+#if PHP_VERSION_ID >= 80000
+#define PHP_DECIMAL_ARGINFO_RETURN_DECIMAL_EX(name, required_num_args, entry_type) \
+    static const zend_internal_arg_info php_decimal_##entry_type##_arginfo_##name[] = { \
+        {(const char*)(zend_uintptr_t)(required_num_args), ZEND_TYPE_INIT_CLASS_CONST(PHP_DECIMAL_FQCN, 0, 0), 0},
+#elif PHP_VERSION_ID >= 70200
 #define PHP_DECIMAL_ARGINFO_RETURN_DECIMAL_EX(name, required_num_args, entry_type) \
     static const zend_internal_arg_info php_decimal_##entry_type##_arginfo_##name[] = { \
         {(const char*)(zend_uintptr_t)(required_num_args), ZEND_TYPE_ENCODE_CLASS_CONST(PHP_DECIMAL_FQCN, 0), 0, 0},
@@ -203,7 +209,9 @@ do { \
     ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(php_decimal_##entry_type##_arginfo_##name, 0, required_num_args, type, 0, 0)
 #endif
 
-#if PHP_VERSION_ID >= 70200
+#if PHP_VERSION_ID >= 80000
+#define PHP_DECIMAL_ARGINFO_DECIMAL(name) {#name, ZEND_TYPE_INIT_CLASS_CONST(PHP_DECIMAL_FQCN, 0, 0), 0},
+#elif PHP_VERSION_ID >= 70200
 #define PHP_DECIMAL_ARGINFO_DECIMAL(name) {#name, ZEND_TYPE_ENCODE_CLASS_CONST(PHP_DECIMAL_FQCN, 0), 0, 0},
 #else
 #define PHP_DECIMAL_ARGINFO_DECIMAL(name) {#name, PHP_DECIMAL_FQCN, IS_OBJECT, 0, 0, 0},

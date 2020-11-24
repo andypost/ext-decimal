@@ -403,9 +403,9 @@ static  php_decimal_t *php_decimal_create_copy(php_decimal_t *src)
 /**
  * Clones the given zval, which must be a decimal object.
  */
-static zend_object *php_decimal_clone_obj(zval *obj)
+static zend_object *php_decimal_clone_obj(zend_object *obj)
 {
-    return (zend_object *) php_decimal_create_copy(Z_DECIMAL_P(obj));
+    return (zend_object *) php_decimal_create_copy(O_DECIMAL_P(obj));
 }
 
 /**
@@ -1648,7 +1648,7 @@ static int php_decimal_compare_to_zval(php_decimal_t *op1, zval *op2)
  * Compares two zval's, one of which must be a decimal. This is the function
  * used by the compare handler, as well as compareTo.
  */
-static php_success_t php_decimal_compare_zval_to_zval(zval *retval, zval *op1, zval *op2)
+static int php_decimal_compare_zval_to_zval(zval *op1, zval *op2)
 {
     int result;
     int invert;
@@ -1661,8 +1661,7 @@ static php_success_t php_decimal_compare_zval_to_zval(zval *retval, zval *op1, z
         invert = 1;
     }
 
-    ZVAL_LONG(retval, php_decimal_normalize_compare_result(result, invert));
-    return SUCCESS;
+    return php_decimal_normalize_compare_result(result, invert);
 }
 
 /**
@@ -1705,7 +1704,7 @@ static php_success_t php_decimal_compare_between_left_and_right(zval *retval, zv
 /**
  * var_dump, print_r etc.
  */
-static HashTable *php_decimal_get_debug_info(zval *obj, int *is_temp)
+static HashTable *php_decimal_get_debug_info(zend_object *obj, int *is_temp)
 {
     zval tmp;
     HashTable *debug_info;
@@ -1713,10 +1712,10 @@ static HashTable *php_decimal_get_debug_info(zval *obj, int *is_temp)
     ALLOC_HASHTABLE(debug_info);
     zend_hash_init(debug_info, 2, NULL, ZVAL_PTR_DTOR, 0);
 
-    ZVAL_STR(&tmp, php_decimal_to_string(Z_DECIMAL_P(obj)));
+    ZVAL_STR(&tmp, php_decimal_to_string(O_DECIMAL_P(obj)));
     zend_hash_str_update(debug_info, "value", sizeof("value") - 1, &tmp);
 
-    ZVAL_LONG(&tmp, php_decimal_get_precision(Z_DECIMAL_P(obj)));
+    ZVAL_LONG(&tmp, php_decimal_get_precision(O_DECIMAL_P(obj)));
     zend_hash_str_update(debug_info, "precision", sizeof("precision") - 1, &tmp);
 
     *is_temp = 1;
@@ -1727,19 +1726,19 @@ static HashTable *php_decimal_get_debug_info(zval *obj, int *is_temp)
 /**
  * Cast to string, int, float or bool.
  */
-static php_success_t php_decimal_cast_object(zval *obj, zval *result, int type)
+static php_success_t php_decimal_cast_object(zend_object *obj, zval *result, int type)
 {
     switch (type) {
         case IS_STRING:
-            ZVAL_STR(result, php_decimal_to_string(Z_DECIMAL_P(obj)));
+            ZVAL_STR(result, php_decimal_to_string(O_DECIMAL_P(obj)));
             return SUCCESS;
 
         case IS_LONG:
-            ZVAL_LONG(result, php_decimal_to_long(Z_DECIMAL_P(obj)));
+            ZVAL_LONG(result, php_decimal_to_long(O_DECIMAL_P(obj)));
             return SUCCESS;
 
         case IS_DOUBLE:
-            ZVAL_DOUBLE(result, php_decimal_to_double(Z_DECIMAL_P(obj)));
+            ZVAL_DOUBLE(result, php_decimal_to_double(O_DECIMAL_P(obj)));
             return SUCCESS;
 
         case _IS_BOOL:
@@ -1796,7 +1795,7 @@ static php_success_t php_decimal_do_operation(zend_uchar opcode, zval *result, z
 /**
  * Object property read - not supported.
  */
-static zval *php_decimal_read_property(zval *object, zval *member, int type, void **cache_slot, zval *rv)
+static zval *php_decimal_read_property(zend_object *object, zend_string *member, int type, void **cache_slot, zval *rv)
 {
     php_decimal_object_properties_not_supported();
     return &EG(uninitialized_zval);
@@ -1805,7 +1804,7 @@ static zval *php_decimal_read_property(zval *object, zval *member, int type, voi
 /**
  *   Object property write - not supported.
  */
-static void php_decimal_write_property(zval *object, zval *member, zval *value, void **cache_slot)
+static zval* php_decimal_write_property(zend_object *object, zend_string *member, zval *value, void **cache_slot)
 {
     php_decimal_object_properties_not_supported();
 }
@@ -1813,7 +1812,7 @@ static void php_decimal_write_property(zval *object, zval *member, zval *value, 
 /**
  * Object property isset/empty - not supported.
  */
-static int php_decimal_has_property(zval *object, zval *member, int has_set_exists, void **cache_slot)
+static int php_decimal_has_property(zend_object *object, zend_string *member, int has_set_exists, void **cache_slot)
 {
     php_decimal_object_properties_not_supported();
     return 0;
@@ -1822,7 +1821,7 @@ static int php_decimal_has_property(zval *object, zval *member, int has_set_exis
 /**
  * Object property unset - not supported.
  */
-static void php_decimal_unset_property(zval *object, zval *member, void **cache_slot)
+static void php_decimal_unset_property(zend_object *object, zend_string *member, void **cache_slot)
 {
     php_decimal_object_properties_not_supported();
 }
@@ -1893,7 +1892,7 @@ PHP_DECIMAL_METHOD(__construct)
     ZEND_PARSE_PARAMETERS_START(0, 2)
         Z_PARAM_OPTIONAL
         Z_PARAM_ZVAL(value)
-        Z_PARAM_STRICT_LONG(prec)
+        Z_PARAM_LONG(prec)
     ZEND_PARSE_PARAMETERS_END();
     {
         php_decimal_t *obj = THIS_DECIMAL();
@@ -2055,8 +2054,8 @@ PHP_DECIMAL_METHOD(round)
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
         Z_PARAM_OPTIONAL
-        Z_PARAM_STRICT_LONG(places)
-        Z_PARAM_STRICT_LONG(rounding)
+        Z_PARAM_LONG(places)
+        Z_PARAM_LONG(rounding)
     ZEND_PARSE_PARAMETERS_END();
 
     php_decimal_round_mpd(PHP_DECIMAL_MPD(res), PHP_DECIMAL_MPD(obj), places, rounding);
@@ -2108,7 +2107,7 @@ PHP_DECIMAL_METHOD(shift)
     zend_long places = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_STRICT_LONG(places)
+        Z_PARAM_LONG(places)
     ZEND_PARSE_PARAMETERS_END();
 
     php_decimal_shift(res, PHP_DECIMAL_MPD(obj), places);
@@ -2301,9 +2300,9 @@ PHP_DECIMAL_METHOD(toFixed)
 
     ZEND_PARSE_PARAMETERS_START(0, 3)
         Z_PARAM_OPTIONAL
-        Z_PARAM_STRICT_LONG(places)
+        Z_PARAM_LONG(places)
         Z_PARAM_BOOL(commas)
-        Z_PARAM_STRICT_LONG(rounding)
+        Z_PARAM_LONG(rounding)
     ZEND_PARSE_PARAMETERS_END();
 
     RETURN_STR(php_decimal_format(THIS_DECIMAL(), places, commas, rounding));
@@ -2387,7 +2386,7 @@ PHP_DECIMAL_METHOD(compareTo)
         Z_PARAM_ZVAL(op2)
     ZEND_PARSE_PARAMETERS_END();
 
-    php_decimal_compare_zval_to_zval(return_value, getThis(), op2);
+    RETURN_LONG(php_decimal_compare_zval_to_zval(getThis(), op2));
 }
 
 /**
@@ -2426,7 +2425,7 @@ PHP_DECIMAL_METHOD(sum)
     ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_ZVAL(values)
         Z_PARAM_OPTIONAL
-        Z_PARAM_STRICT_LONG(prec)
+        Z_PARAM_LONG(prec)
     ZEND_PARSE_PARAMETERS_END();
 
     PHP_DECIMAL_VALID_PRECISION_OR_RETURN(prec);
@@ -2451,7 +2450,7 @@ PHP_DECIMAL_METHOD(avg)
     ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_ZVAL(values)
         Z_PARAM_OPTIONAL
-        Z_PARAM_STRICT_LONG(prec)
+        Z_PARAM_LONG(prec)
     ZEND_PARSE_PARAMETERS_END();
 
     PHP_DECIMAL_VALID_PRECISION_OR_RETURN(prec);
