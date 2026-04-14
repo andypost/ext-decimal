@@ -397,6 +397,7 @@ static php_decimal_success_t php_decimal_do_operation_handler(zend_uchar opcode,
     /* Unsupported op type - return success to avoid casting. */
     if (UNEXPECTED(op == NULL)) {
         php_decimal_operator_not_supported();
+        ZVAL_UNDEF(result);
         return SUCCESS;
     }
 

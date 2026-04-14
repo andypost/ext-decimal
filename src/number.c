@@ -105,6 +105,7 @@ static php_decimal_success_t php_decimal_number_do_operation(zend_uchar opcode, 
     /* Unsupported operator - return success to avoid casting. */
     if (UNEXPECTED(func == NULL)) {
         php_decimal_operator_not_supported();
+        ZVAL_UNDEF(result);
         return SUCCESS;
     }
 
